@@ -1,0 +1,27 @@
+# Core Framework
+fastapi
+uvicorn[standard]
+
+# Database (NeonDB/PostgreSQL)
+sqlalchemy
+psycopg2-binary
+
+# Pydantic for request/response models
+pydantic
+
+# Environment variables
+python-dotenv
+
+# Auth: Clerk JWT verification
+python-jose
+requests
+
+# CORS for frontend-backend integration
+fastapi[all]  # includes starlette & optional features like CORS
+
+# OpenAI API (optional for advisor module)
+openai
+
+# Optional - for testing
+pytest
+httpx
