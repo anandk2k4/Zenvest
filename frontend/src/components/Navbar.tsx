@@ -5,7 +5,7 @@ import {
     NavbarLogo,
     NavbarButton,
   } from "./ui/resizable-navbar";
-  import { useState } from "react";
+
   
   export default function NavbarDemo() {
     const navItems = [
@@ -24,14 +24,14 @@ import {
     ];  
   
     return (
-      <div className="relative w-full">
+      <div className="w-full px-10">
         <Navbar>
           {/* Desktop Navigation */}
           <NavBody>
-            <NavbarLogo />
+            <NavbarLogo/>
             <NavItems className="text-md" items={navItems} />
             <div className="flex items-center gap-4">
-              <NavbarButton variant="primary" className="font-semibold text-sm">Login/Sign up</NavbarButton>
+              <NavbarButton variant="primary" className="font-semibold text-[15px]">Login/Sign up</NavbarButton>
             </div>
           </NavBody>
         </Navbar>
