@@ -5,8 +5,8 @@ import {
     NavbarLogo,
     NavbarButton,
   } from "./ui/resizable-navbar";
+import {SignUpButton } from "@clerk/clerk-react";
 
-  
   export default function NavbarDemo() {
     const navItems = [
       {
@@ -31,7 +31,9 @@ import {
             <NavbarLogo/>
             <NavItems className="text-md" items={navItems} />
             <div className="flex items-center gap-4">
-              <NavbarButton variant="primary" className="font-semibold text-[15px]">Login/Sign up</NavbarButton>
+            <SignUpButton mode="modal" forceRedirectUrl="/dashboard">
+              <NavbarButton variant="primary" className="font-semibold text-[15px]">Login/SignUp</NavbarButton>
+            </SignUpButton>
             </div>
           </NavBody>
         </Navbar>
