@@ -8,7 +8,7 @@ import DashboardLayout from "@/pages/Dashboard/Dashboard";
 import DashboardHome from "@/pages/Dashboard/DashHome";
 import Budget from "@/pages/Dashboard/Budget";
 import Goals from "@/pages/Dashboard/Goals";
-import AIInsight from "@/pages/Dashboard/AIInsight";
+import AIInsight from "@/pages/Dashboard/ChatBot";
 import Reports from "@/pages/Dashboard/Reports";
 import Portfolio from "@/pages/Dashboard/Portfolio";
 import News from "@/pages/Dashboard/News";

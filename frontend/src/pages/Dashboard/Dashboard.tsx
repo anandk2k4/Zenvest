@@ -1,7 +1,9 @@
 // src/pages/dashboard/DashboardLayout.tsx
+import React, { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "@/components/Sidebar";
 import Topbar from "@/components/Topbar";
+import { useNavigate } from "react-router-dom";
 
 const DashboardLayout = () => {
   return (

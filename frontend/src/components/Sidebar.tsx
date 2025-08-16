@@ -16,7 +16,7 @@ const navItems = [
   { label: "Budget Planner", to: "/dashboard/budget", icon: <BarChart /> },
   { label: "Financial Goals", to: "/dashboard/goals", icon: <Target /> },
   { label: "AI Insight", to: "/dashboard/ai", icon: <BrainCog /> },
-  { label: "Trending News", to: "/dashboard/news", icon: <Newspaper /> },
+  { label: "Finance News", to: "/dashboard/news", icon: <Newspaper /> },
   { label: "Portfolio", to: "/dashboard/portfolio", icon: <FolderKanban /> },
   { label: "Reports", to: "/dashboard/reports", icon: <FileBarChart /> },
 ];

@@ -19,9 +19,15 @@ requests
 # CORS for frontend-backend integration
 fastapi[all]  # includes starlette & optional features like CORS
 
-# OpenAI API (optional for advisor module)
-openai
 
 # Optional - for testing
 pytest
 httpx
+
+python-dateutil
+
+cachetools==5.5.0
+google-generativeai
+pymongo
+
+scikit-learn==1.5.1
