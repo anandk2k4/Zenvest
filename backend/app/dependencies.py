@@ -1,6 +1,6 @@
 # backend/app/dependencies.py
 from fastapi import Depends, HTTPException
-from .db import db  # ✅ this will now work
+from .db import _db  # ✅ this will now work
 from typing import Optional
 
 # Example authentication dependency

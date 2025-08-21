@@ -1,85 +1,129 @@
-from fastapi import APIRouter, HTTPException, Depends, Query, Request
-from typing import Optional
-from app.schemas.goal import (
-    GoalCreate, GoalUpdate,
-    GoalResponse, GoalsListResponse, GoalCreateResponse,
-    GoalUpdateResponse, GoalDeleteResponse
-)
-from ..services.goal_service import GoalService, AIAdvisorService
-from ..models.goal import AIAdviceRequest
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, status, Header
+from motor.motor_asyncio import AsyncIOMotorDatabase
+from jose import jwt
+import requests, time, logging
+
+from app.db import get_database
+from ..schemas.goal import GoalCreate, GoalUpdate, GoalResponse
+from ..services.goal_service import GoalService
+from ..core.config import settings
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
-def get_goal_service(request: Request):
-    return GoalService(request.app.mongodb)
+# --- Clerk JWKS Cache ---
+_jwks_cache = {"keys": None, "ts": 0}
 
-def get_ai_service():
-    return AIAdvisorService()
+def _get_jwks():
+    now = time.time()
+    if _jwks_cache["keys"] and now - _jwks_cache["ts"] < 900:  # 15 min cache
+        return _jwks_cache["keys"]
 
-@router.post("", response_model=GoalCreateResponse)
-async def create_goal(goal: GoalCreate, request: Request, service: GoalService = Depends(get_goal_service)):
+    if not settings.CLERK_JWKS_URL:
+        raise RuntimeError("CLERK_JWKS_URL is not set.")
+
+    resp = requests.get(settings.CLERK_JWKS_URL, timeout=5)
+    resp.raise_for_status()
+    data = resp.json()
+    _jwks_cache["keys"] = data
+    _jwks_cache["ts"] = now
+    return data
+
+def _get_unverified_header(token: str):
+    return jwt.get_unverified_header(token)
+
+def _find_key(kid: str, jwks: dict):
+    for k in jwks.get("keys", []):
+        if k.get("kid") == kid:
+            return k
+    return None
+
+def _clerk_verify_and_get_user(token: str) -> Optional[str]:
     try:
-        goal_id = await service.create_goal(goal)
-        # Immediately generate AI advice using the same payload
-        ai_service = AIAdvisorService()
-        advice_resp = await ai_service.get_advice(AIAdviceRequest(**goal.model_dump()))
-        return GoalCreateResponse(goal_id=goal_id, message="Financial goal created successfully", ai_advice=advice_resp.advice)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error creating goal: {str(e)}")
+        header = jwt.get_unverified_header(token)
+        jwks = _get_jwks()
+        key = _find_key(header.get("kid"), jwks)
+        if key is None:
+            logger.error("[Clerk] No matching JWK for kid.")
+            return None
 
-@router.get("/{user_id}", response_model=GoalsListResponse)
-async def get_user_goals(
-    user_id: str,
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=100),
-    goal_type: Optional[str] = Query(None),
-    service: GoalService = Depends(get_goal_service)
+        # python-jose handles JWK dict directly ✅
+        payload = jwt.decode(
+            token,
+            key,
+            algorithms=[header.get("alg", "RS256")],
+            issuer=settings.CLERK_ISSUER,
+            options={"verify_aud": False},
+        )
+        return payload.get("sub")
+    except Exception as e:
+        logger.error("[Clerk] Token verification failed: %s", e)
+        return None
+
+async def get_current_user_id(authorization: Optional[str] = Header(default=None, alias="Authorization")) -> str:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Unauthorized: Missing Bearer token")
+    
+    token = authorization.replace("Bearer ", "").strip()
+    user_id = _clerk_verify_and_get_user(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid token")
+    
+    return user_id
+
+# ---------------------- Routes ----------------------
+
+@router.post("/goal", response_model=GoalResponse)
+async def create_goal(
+    goal_data: GoalCreate,
+    clerk_user_id: str = Depends(get_current_user_id),
+    db: AsyncIOMotorDatabase = Depends(get_database)
 ):
-    try:
-        goals, total = await service.get_goals_by_user(user_id, skip, limit, goal_type)
-        return GoalsListResponse(goals=goals, total_count=total, message=f"Retrieved {len(goals)} goals for user {user_id}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching goals: {str(e)}")
+    goal_service = GoalService(db)
+    return await goal_service.create_goal(clerk_user_id, goal_data)
 
-@router.get("/{user_id}/{goal_id}", response_model=GoalResponse)
-async def get_goal(user_id: str, goal_id: str, service: GoalService = Depends(get_goal_service)):
-    try:
-        goal = await service.get_goal_by_id(goal_id, user_id)
-        if not goal:
-            raise HTTPException(status_code=404, detail="Goal not found")
-        return GoalResponse(goal=goal, message="Goal retrieved successfully")
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving goal: {str(e)}")
+@router.get("/goal", response_model=List[GoalResponse])
+async def get_user_goals(
+    clerk_user_id: str = Depends(get_current_user_id),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    goal_service = GoalService(db)
+    return await goal_service.get_user_goals(clerk_user_id)
 
-@router.put("/{user_id}/{goal_id}", response_model=GoalUpdateResponse)
-async def update_goal(user_id: str, goal_id: str, goal_update: GoalUpdate, service: GoalService = Depends(get_goal_service)):
-    try:
-        ok = await service.update_goal(goal_id, user_id, goal_update)
-        if not ok:
-            raise HTTPException(status_code=404, detail="Goal not found")
-        return GoalUpdateResponse(message="Goal updated successfully")
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error updating goal: {str(e)}")
+@router.get("/goal/{goal_id}", response_model=GoalResponse)
+async def get_goal(
+    goal_id: str,
+    clerk_user_id: str = Depends(get_current_user_id),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    goal_service = GoalService(db)
+    goal = await goal_service.get_goal_by_id(goal_id, clerk_user_id)
+    if not goal:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Goal not found")
+    return goal
 
-@router.delete("/{user_id}/{goal_id}", response_model=GoalDeleteResponse)
-async def delete_goal(user_id: str, goal_id: str, service: GoalService = Depends(get_goal_service)):
-    try:
-        ok = await service.delete_goal(goal_id, user_id)
-        if not ok:
-            raise HTTPException(status_code=404, detail="Goal not found")
-        return GoalDeleteResponse(message="Goal deleted successfully")
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error deleting goal: {str(e)}")
+@router.put("/goal/{goal_id}", response_model=GoalResponse)
+async def update_goal(
+    goal_id: str,
+    update_data: GoalUpdate,
+    clerk_user_id: str = Depends(get_current_user_id),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    goal_service = GoalService(db)
+    goal = await goal_service.update_goal(goal_id, clerk_user_id, update_data)
+    if not goal:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Goal not found")
+    return goal
 
-@router.post("/advice")
-async def get_financial_advice(request: AIAdviceRequest, ai_service: AIAdvisorService = Depends(get_ai_service)):
-    try:
-        return await ai_service.get_advice(request)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating advice: {str(e)}")
+@router.delete("/goal/{goal_id}")
+async def delete_goal(
+    goal_id: str,
+    clerk_user_id: str = Depends(get_current_user_id),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    goal_service = GoalService(db)
+    success = await goal_service.delete_goal(goal_id, clerk_user_id)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Goal not found")
+    return {"message": "Goal deleted successfully"}

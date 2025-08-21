@@ -3,7 +3,7 @@ import { UserButton, useUser } from "@clerk/clerk-react";
 import { Bell, Sun, Moon } from "lucide-react";
 import { Link } from "react-router-dom"; // needed for logo link
 import { useTheme } from "@/context/ThemeProvider";
-
+import Notifications from "@/pages/Dashboard/Notification"
 const Topbar = () => {
   const { user } = useUser();
   const { theme, toggleTheme } = useTheme();
@@ -27,13 +27,7 @@ const Topbar = () => {
         )}
 
         {/* Notification Bell */}
-        <button
-          type="button"
-          className="relative p-2 rounded-2xl dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-300"
-        >
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-        </button>
+        <Notifications/>
 
         {/* Theme Toggle */}
         <button

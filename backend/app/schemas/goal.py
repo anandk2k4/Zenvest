@@ -1,42 +1,36 @@
 from pydantic import BaseModel
-from typing import List, Optional
-from app.models.goal import Goal, GoalType, TimeFrame
+from typing import Optional
+from app.models.goal import GoalCategory
+from datetime import datetime
+
 
 class GoalCreate(BaseModel):
-    user_id: str
-    goal_type: GoalType
-    target_amount: float
-    current_savings: float = 0
-    time_frame: TimeFrame
-    monthly_income: Optional[float] = None
-    monthly_expenses: Optional[float] = None
+    title: str
+    category: str
+    targetAmount: int
+    currentAmount: int
+    duration: int
     description: Optional[str] = None
+    currentAmount: int = 0   # default
 
 class GoalUpdate(BaseModel):
-    goal_type: Optional[GoalType] = None
+    title: Optional[str] = None
+    category: Optional[GoalCategory] = None
     target_amount: Optional[float] = None
-    current_savings: Optional[float] = None
-    time_frame: Optional[TimeFrame] = None
-    monthly_income: Optional[float] = None
-    monthly_expenses: Optional[float] = None
+    current_amount: Optional[float] = None
+    duration: Optional[int] = None
     description: Optional[str] = None
 
 class GoalResponse(BaseModel):
-    goal: Goal
-    message: str
-
-class GoalCreateResponse(BaseModel):
-    goal_id: str
-    message: str
-    ai_advice: Optional[str] = None
-
-class GoalUpdateResponse(BaseModel):
-    message: str
-
-class GoalDeleteResponse(BaseModel):
-    message: str
-
-class GoalsListResponse(BaseModel):
-    goals: List[Goal]
-    total_count: int
-    message: str
+    id: str
+    title: str
+    category: GoalCategory
+    target_amount: float
+    current_amount: float
+    duration: int
+    description: Optional[str] = None
+    created_at: datetime
+    progress_percentage: float
+    
+    class Config:
+        from_attributes = True

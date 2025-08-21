@@ -1,44 +1,55 @@
-from pydantic import BaseModel, Field
-from typing import Optional
+from typing import List, Optional, Any
+from pydantic import BaseModel
 from datetime import datetime
 
-class BudgetCreate(BaseModel):
-    user_id: str
-    category: str
-    budget_amount: float = Field(ge=0)
+from ..models.budget import (
+    UserResponse,
+    BudgetResponse,
+    ExpenseResponse,
+    IncomeResponse,
+    BudgetAnalytics,
+    MonthlyReport,
+    CategorySummary,
+    DashboardSummary,
+    AIAdvice,
+    AIAdvisorResponse,
+)
 
-class BudgetUpdate(BaseModel):
-    category: Optional[str] = None
-    budget_amount: Optional[float] = Field(None, ge=0)
+# ------------------- GENERIC PAGINATION -------------------
+class PaginatedResponse(BaseModel):
+    items: List[Any]
+    total: int
+    page: int
+    size: int
+    pages: int
+    success: bool = True
 
-class BudgetResponse(BaseModel):
-    id: str
-    user_id: str
-    category: str
-    budget_amount: float
-    spent_amount: float
-    remaining: float
-    percentage_spent: float
-    created_at: datetime
+# ------------------- LIST RESPONSES -------------------
+class BudgetListResponse(BaseModel):
+    budgets: List[BudgetResponse]
+    total_count: int
+    success: bool = True
 
-    @classmethod
-    def from_budget(cls, budget_doc: dict):
-        remaining = budget_doc["budget_amount"] - budget_doc["spent_amount"]
-        percentage_spent = (budget_doc["spent_amount"] / budget_doc["budget_amount"]) * 100 if budget_doc["budget_amount"] > 0 else 0
-        
-        return cls(
-            id=str(budget_doc["_id"]),
-            user_id=budget_doc["user_id"],
-            category=budget_doc["category"],
-            budget_amount=budget_doc["budget_amount"],
-            spent_amount=budget_doc["spent_amount"],
-            remaining=remaining,
-            percentage_spent=round(percentage_spent, 2),
-            created_at=budget_doc["created_at"]
-        )
+class ExpenseListResponse(BaseModel):
+    expenses: List[ExpenseResponse]
+    total_count: int
+    total_amount: float
+    success: bool = True
 
-class BudgetsSummary(BaseModel):
-    total_budget: float
-    total_spent: float
-    total_remaining: float
-    budgets: list[BudgetResponse]
+class IncomeListResponse(BaseModel):
+    income: List[IncomeResponse]
+    total_count: int
+    total_amount: float
+    success: bool = True
+
+# ------------------- DASHBOARD & AI RESPONSES -------------------
+# Reuse DashboardSummary, AIAdvice, AIAdvisorResponse from models.budget
+# so no duplication here.
+
+class DashboardSummaryResponse(BaseModel):
+    summary: DashboardSummary
+    success: bool = True
+
+class AIAdvisorResponseWrapper(BaseModel):
+    ai: AIAdvisorResponse
+    success: bool = True

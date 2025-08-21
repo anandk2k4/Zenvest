@@ -4,6 +4,7 @@ import { Outlet } from "react-router-dom";
 import Sidebar from "@/components/Sidebar";
 import Topbar from "@/components/Topbar";
 import { useNavigate } from "react-router-dom";
+import { Toaster } from "@/components/ui/toaster"
 
 const DashboardLayout = () => {
   return (
@@ -18,6 +19,7 @@ const DashboardLayout = () => {
 
         {/* Scrollable main content under Topbar */}
         <main className="flex-1 overflow-y-auto mt-14 p-6 bg-gray-50 dark:bg-gray-950">
+        <Toaster />
           <Outlet />
         </main>
       </div>

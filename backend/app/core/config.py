@@ -9,6 +9,12 @@ class Settings:
 
     GEMINI_API_KEY: str | None = os.getenv("GEMINI_API_KEY")
     
+    COHERE_API_KEY : str | None = os.getenv("COHERE_API_KEY")
+    
+    ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY")
+    
+    CLERK_PUBLISHABLE_KEY: str = os.getenv("CLERK_PUBLISHABLE_KEY")
+    CLERK_SECRET_KEY: str = os.getenv("CLERK_SECRET_KEY")
     
     CLERK_JWKS_URL: str | None = os.getenv("CLERK_JWKS_URL")
     CLERK_ISSUER: str | None = os.getenv("CLERK_ISSUER")

@@ -78,7 +78,7 @@ Format must strictly follow this schema:
 Now answer the user query: "{user_message}"
 """
 
-        model = genai.GenerativeModel(MODEL_NAME)
+        model = genai.GenerativeModel(_model)
 
         response = model.generate_content(
             prompt,

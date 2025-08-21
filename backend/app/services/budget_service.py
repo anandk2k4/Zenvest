@@ -1,78 +1,64 @@
-from ..db import get_database
-from ..schemas.budget import BudgetCreate, BudgetUpdate, BudgetResponse, BudgetsSummary
-from bson import ObjectId
+from app.models.budget import BudgetCreate, BudgetUpdate, BudgetResponse, MessageResponse
+from app.db import get_database  # ✅ use dependency instead of global _db
+from motor.motor_asyncio import AsyncIOMotorDatabase
+
 from datetime import datetime
-from typing import Optional, List
+from bson import ObjectId
+from fastapi import Depends
 
 class BudgetService:
-    def __init__(self):
-        self.db = get_database()
-        self.collection = self.db.budgets
-
-    async def create_budget(self, budget: BudgetCreate) -> BudgetResponse:
-        # Check if budget category already exists for user
-        existing = await self.collection.find_one({
-            "user_id": budget.user_id,
-            "category": budget.category
-        })
+    def __init__(self, db: AsyncIOMotorDatabase = Depends(get_database)):
+        self.db = db
         
-        if existing:
-            raise ValueError("Budget category already exists for this user")
-
+    async def create_budget(self, budget: BudgetCreate, user_id: str) -> BudgetResponse:
         budget_doc = {
-            "user_id": budget.user_id,
-            "category": budget.category,
-            "budget_amount": budget.budget_amount,
-            "spent_amount": 0.0,
-            "created_at": datetime.utcnow()
+            "user_id": user_id,
+            "name": budget.name,
+            "total_income": budget.total_income,
+            "period": budget.period.value,
+            "category_limits": {k.value: v for k, v in budget.category_limits.items()},
+            "savings_goal": budget.savings_goal,
+            "description": budget.description,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
         }
+        result = await self.db.budgets.insert_one(budget_doc)
+        budget_doc["_id"] = str(result.inserted_id)
+        return BudgetResponse(**budget_doc)
 
-        result = await self.collection.insert_one(budget_doc)
-        budget_doc["_id"] = result.inserted_id
-
-        return BudgetResponse.from_budget(budget_doc)
-
-    async def get_user_budgets(self, user_id: str) -> BudgetsSummary:
-        cursor = self.collection.find({"user_id": user_id})
+    async def get_user_budgets(self, user_id: str):
+        cursor = self.db.budgets.find({"user_id": user_id})
         budgets = []
-        total_budget = 0.0
-        total_spent = 0.0
+        async for b in cursor:
+            b["_id"] = str(b["_id"])
+            budgets.append(BudgetResponse(**b))
+        return budgets
 
-        async for budget_doc in cursor:
-            budget_response = BudgetResponse.from_budget(budget_doc)
-            budgets.append(budget_response)
-            total_budget += budget_response.budget_amount
-            total_spent += budget_response.spent_amount
-
-        return BudgetsSummary(
-            total_budget=total_budget,
-            total_spent=total_spent,
-            total_remaining=total_budget - total_spent,
-            budgets=budgets
-        )
-
-    async def update_budget(self, budget_id: str, budget_update: BudgetUpdate) -> Optional[BudgetResponse]:
-        update_data = {k: v for k, v in budget_update.dict().items() if v is not None}
-        
-        if not update_data:
+    async def get_budget(self, budget_id: str, user_id: str):
+        doc = await self.db.budgets.find_one({"_id": ObjectId(budget_id), "user_id": user_id})
+        if not doc:
             return None
+        doc["_id"] = str(doc["_id"])
+        return BudgetResponse(**doc)
 
-        result = await self.collection.find_one_and_update(
-            {"_id": ObjectId(budget_id)},
+    async def update_budget(self, budget_id: str, budget: BudgetUpdate, user_id: str):
+        update_data = {k: v for k, v in budget.dict(exclude_unset=True).items()}
+        if "category_limits" in update_data:
+            update_data["category_limits"] = {k.value: v for k, v in update_data["category_limits"].items()}
+        update_data["updated_at"] = datetime.utcnow()
+
+        result = await self.db.budgets.find_one_and_update(
+            {"_id": ObjectId(budget_id), "user_id": user_id},
             {"$set": update_data},
             return_document=True
         )
+        if not result:
+            return None
+        result["_id"] = str(result["_id"])
+        return BudgetResponse(**result)
 
-        if result:
-            return BudgetResponse.from_budget(result)
-        return None
-
-    async def delete_budget(self, budget_id: str) -> bool:
-        result = await self.collection.delete_one({"_id": ObjectId(budget_id)})
-        return result.deleted_count > 0
-
-    async def update_spent_amount(self, user_id: str, category: str, amount: float):
-        await self.collection.update_one(
-            {"user_id": user_id, "category": category},
-            {"$inc": {"spent_amount": amount}}
-        )
+    async def delete_budget(self, budget_id: str, user_id: str) -> MessageResponse:
+        result = await self.db.budgets.delete_one({"_id": ObjectId(budget_id), "user_id": user_id})
+        if result.deleted_count == 0:
+            return MessageResponse(message="Budget not found", success=False)
+        return MessageResponse(message="Budget deleted successfully")

@@ -1,30 +1,26 @@
-from typing import Optional, List
+from pydantic import BaseModel, Field, EmailStr
+from typing import Optional
 from datetime import datetime
+from bson import ObjectId
+from app.models.goal import PyObjectId
 
-class User:
-    """User model for MongoDB operations"""
-    
-    @staticmethod
-    def create_user_document(
-        email: str,
-        name: str,
-        hashed_password: str,
-        profile_data: dict = None
-    ) -> dict:
-        """Create user document for MongoDB"""
-        return {
-            "email": email,
-            "name": name,
-            "hashed_password": hashed_password,
-            "profile": profile_data or {},
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow(),
-            "is_active": True
-        }
-    
-    @staticmethod
-    def update_user_document(update_data: dict) -> dict:
-        """Create update document for MongoDB"""
-        update_data["updated_at"] = datetime.utcnow()
-        return {"$set": update_data}
+class UserProfile(BaseModel):
+    age: int
+    monthly_income: float
+    monthly_expenses: float
+    dependents: int = 0
 
+class User(BaseModel):
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    clerk_user_id: str
+    email: Optional[EmailStr] = None
+    full_name: Optional[str] = None
+    profile: Optional[UserProfile] = None
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    class Config:
+        allow_population_by_field_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}

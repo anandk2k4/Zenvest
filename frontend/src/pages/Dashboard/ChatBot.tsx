@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ChatMessage } from "@/components/ChatMessage";
 import { ChatInput } from "@/components/ChatInput";
 import { Card } from "@/components/ui/card";
 import axios from "axios";
 import { useUser } from "@clerk/clerk-react";
-import AIInsight from "@/components/AIInsight";
+
 
 interface Message {
   role: "user" | "bot";
@@ -15,6 +15,8 @@ export default function Advisor() {
   const { user, isSignedIn } = useUser();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const bottomRef = useRef<HTMLDivElement | null>(null);
 
   // ✅ Fetch chat history on mount
   useEffect(() => {
@@ -43,6 +45,11 @@ export default function Advisor() {
     }
   }, [isSignedIn, user]);
 
+  useEffect(() => {
+    // scroll smoothly to bottom when messages change
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
+
   const handleSend = async (text: string) => {
     if (!isSignedIn || !user) {
       alert("Please sign in to use the advisor.");
@@ -61,11 +68,27 @@ export default function Advisor() {
         userId: user.id,
         message: text,
       });
+      
 
-      setMessages([
-        ...newMessages,
-        { role: "bot", content: res.data }, // structured response
-      ]);
+      let botResponse = res.data;
+
+      // If response is a JSON string, parse it
+      if (typeof botResponse === "string") {
+          botResponse = JSON.parse(botResponse);
+        setMessages([
+          ...newMessages,
+          { role: "bot", content: botResponse },
+        ]);
+      }
+      else{
+        setMessages([
+          ...newMessages,
+          { role: "bot", content: res.data },
+        ]);
+      }
+      
+      
+      
     } catch {
       setMessages([
         ...newMessages,
@@ -84,16 +107,15 @@ export default function Advisor() {
   };
 
   return (
-    <Card className="flex flex-col h-[80vh]">
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+    <Card className="flex flex-col h-[85vh] dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-800">
         {messages.map((msg, idx) =>
-          msg.role === "user" ? (
-            <ChatMessage key={idx} role="user" content={msg.content} />
-          ) : (
-            <AIInsight key={idx} response={msg.content} />
-          )
+          // msg.role === "user" ? (
+          <ChatMessage key={idx} role={msg.role} content={msg.content} />
         )}
         {loading && <ChatMessage role="bot" content="Thinking..." />}
+
+        <div ref={bottomRef} />
       </div>
       <ChatInput onSend={handleSend} />
     </Card>
