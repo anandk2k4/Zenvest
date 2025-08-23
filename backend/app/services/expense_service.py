@@ -1,5 +1,5 @@
 from app.models.budget import ExpenseCreate, ExpenseUpdate, ExpenseResponse, MessageResponse
-from app.db import get_database  # ✅ use dependency instead of global _db
+from app.db import get_database  
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from datetime import datetime

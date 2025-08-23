@@ -1,29 +1,34 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Header
-from typing import Optional, List
-from jose import jwt
-import requests
+import json
+import re
 import time
+import os
+import requests
+import asyncio
 import anyio
 import cohere
 import google.generativeai as genai
+from fastapi import APIRouter, Depends, HTTPException, Header
+from typing import Optional
+from jose import jwt
 from ..db import get_collection
 from ..models.chat_history import ChatHistory
-from ..schemas.chatBot import ChatRequest, ChatResponse, Message, ChatHistoryResponse
+from ..schemas.chatBot import ChatRequest, ChatResponse
 from ..services import gemini_service as gemini
 from ..services.cohere_service import generate_cohere_response
 from ..services.gemini_service import generate_gemini_response
 from ..core.config import settings
-import os
-import json
+
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# --- External Clients ---
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 gemini_model = genai.GenerativeModel("gemini-1.5-flash")
 co = cohere.Client(os.getenv("COHERE_API_KEY"))
 
-
+# --- Investment-only filter (unchanged) ---
 # --- Investment-only filter ---
 ALLOWED_TOPICS = [
     # 🔹 General Investing
@@ -90,55 +95,43 @@ ALLOWED_TOPICS = [
     "personal loan", "debt payoff", "financial goal",
 ]
 
-
 # --- Clerk verification (JWKS cached) ---
 _jwks_cache = {"keys": None, "ts": 0}
 
 def _get_jwks():
     now = time.time()
-    if _jwks_cache["keys"] and now - _jwks_cache["ts"] < 900:  # 15 min cache
+    if _jwks_cache["keys"] and now - _jwks_cache["ts"] < 900:
         return _jwks_cache["keys"]
     if not settings.CLERK_JWKS_URL:
         raise RuntimeError("CLERK_JWKS_URL is not set.")
     resp = requests.get(settings.CLERK_JWKS_URL, timeout=5)
     resp.raise_for_status()
     data = resp.json()
-    _jwks_cache["keys"] = data
-    _jwks_cache["ts"] = now
+    _jwks_cache.update({"keys": data, "ts": now})
     return data
 
 def _get_unverified_header(token: str):
     return jwt.get_unverified_header(token)
 
 def _find_key(kid: str, jwks: dict):
-    for k in jwks.get("keys", []):
-        if k.get("kid") == kid:
-            return k
-    return None
+    return next((k for k in jwks.get("keys", []) if k.get("kid") == kid), None)
 
 def _clerk_verify_and_get_user(token: str) -> Optional[str]:
-    """
-    Verifies Clerk JWT and returns userId (sub) or None if verification fails.
-    """
     try:
         header = _get_unverified_header(token)
         jwks = _get_jwks()
         key = _find_key(header.get("kid"), jwks)
-        if key is None:
-            logger.error("[Clerk] No matching JWK for kid.")
+        if not key:
             return None
-
-        # Build public key
         public_key = jwt.algorithms.RSAAlgorithm.from_jwk(key)
-
         payload = jwt.decode(
             token,
             public_key,
             algorithms=[header.get("alg", "RS256")],
             issuer=settings.CLERK_ISSUER,
-            options={"verify_aud": False},  # configure if you want to verify 'aud'
+            options={"verify_aud": False},
         )
-        return payload.get("sub")  # Clerk user id
+        return payload.get("sub")
     except Exception as e:
         logger.error("[Clerk] Token verification failed: %s", e)
         return None
@@ -148,38 +141,45 @@ async def _resolve_user_id(authorization: Optional[str], body_user_id: Optional[
         token = authorization.replace("Bearer ", "").strip()
         user_id = _clerk_verify_and_get_user(token)
         if user_id:
-            logger.info("[Clerk] Verified userId=%s", user_id)
             return user_id
         logger.warning("[Clerk] Verification failed. Falling back to body userId.")
     if not body_user_id:
-        raise HTTPException(status_code=401, detail="Unauthorized: missing userId or invalid Clerk token")
-    logger.warning("[Auth] Using userId from request body (not verified): %s", body_user_id)
+        raise HTTPException(status_code=401, detail="Unauthorized")
     return body_user_id
 
 def is_investment_related(text: str) -> bool:
     t = text.lower()
     return any(topic in t for topic in ALLOWED_TOPICS)
 
-
+# --- Response Cleaner ---
 def clean_ai_response(raw: str) -> ChatResponse:
     if not raw:
-        return ChatResponse(
-            type="text",
-            title="Error",
-            description="No response from AI."
-        )
-    cleaned = raw.strip().strip("`")
-    if cleaned.lower().startswith("json"):
-        cleaned = cleaned[4:].strip()
+        return ChatResponse(type="text", title="Error", description="No response from AI.")
+    if not isinstance(raw, str):
+        raw = str(raw)
+
+    cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw.strip(), flags=re.IGNORECASE)
     try:
         parsed = json.loads(cleaned)
         return ChatResponse(**parsed)
     except Exception:
-        return ChatResponse(
-            type="text",
-            title="AI Response",
-            description=raw
+        return ChatResponse(type="text", title="AI Response", description=cleaned)
+
+# --- Save history in background ---
+async def save_chat_history(user_id: str, user_query: str, ai_response: ChatResponse):
+    coll = get_collection("chat_history")
+    try:
+        new_msgs = [
+            {"role": "user", "text": user_query},
+            {"role": "bot", "response": ai_response.dict()}
+        ]
+        await coll.update_one(
+            {"userId": user_id},
+            {"$push": {"messages": {"$each": new_msgs}}},
+            upsert=True
         )
+    except Exception as e:
+        logger.exception(f"[MongoDB] Failed to save chat for userId={user_id}: {e}")
 
 # ------------------------------------
 @router.post("/chat", response_model=ChatResponse)
@@ -187,8 +187,6 @@ async def chat_with_advisor(
     req: ChatRequest,
     authorization: Optional[str] = Header(default=None, alias="Authorization"),
 ):
-    
-    # Resolve user ID (Clerk token preferred)
     user_id = await _resolve_user_id(authorization, req.userId)
     query = req.message.strip()
 
@@ -200,76 +198,36 @@ async def chat_with_advisor(
         )
 
     if not gemini.is_ready():
-        logger.error("[Gemini] Not initialized or API key missing.")
         raise HTTPException(status_code=500, detail="Gemini not initialized. Check GEMINI_API_KEY.")
 
-    logger.info("[Chat] userId=%s | message=%r", user_id, req.message)
-    
-    # Call Gemini in a worker thread
-    # prompt = build_prompt(query)
-    
-    ai_response = None
-    # Try Gemini first
+    # --- Run Gemini with fallback to Cohere ---
     try:
         ai_response = await generate_gemini_response(query)
     except Exception as e:
-        logging.error(f"Gemini API error, switching to Cohere: {e} | Raw: {locals().get('raw_response', None)}")
+        logger.error(f"[Gemini] Failed: {e}")
         try:
             ai_response = await generate_cohere_response(query)
         except Exception as e:
-            logging.error(f"Cohere API error: {e} | Raw: {locals().get('raw_response', None)}")
+            logger.error(f"[Cohere] Failed: {e}")
             raise HTTPException(status_code=500, detail="AI services unavailable")
-            ai_response = "I'm here to provide investment-related guidance only."
 
-    # Clean & structure response
+    # Clean response
     structured = clean_ai_response(ai_response)
-    # ---------------------
-    # Save to MongoDB
-    # ---------------------
-    await save_chat_history(req.userId, req.message, structured)
+
+    # Save history in background (non-blocking)
+    asyncio.create_task(save_chat_history(user_id, req.message, structured))
 
     return structured
-
-async def save_chat_history(user_id: str, user_query: str, ai_response: ChatResponse):
-    coll = get_collection("chat_history")
-    try:
-        new_msgs = [
-            {"role": "user", "text": user_query},
-            {"role": "bot", "response": ai_response.dict()}
-        ]
-        result = await coll.update_one(
-            {"userId": user_id},
-            {"$push": {"messages": {"$each": new_msgs}}},
-            upsert=True
-        )
-        
-        if result.upserted_id:
-            logging.info(f"[MongoDB] Created new chat doc for userId={user_id}")
-        else:
-            logging.info(f"[MongoDB] Appended messages for userId={user_id}")
-    except Exception as e:
-        logging.exception(f"[MongoDB] Failed to save chat for userId={user_id}: {e}")
-
 
 @router.get("/history/{userId}")
 async def get_history(userId: str):
     coll = get_collection("chat_history")
     doc = await coll.find_one({"userId": userId}, projection={"_id": 0})
-
     if not doc or "messages" not in doc:
         return {"messages": []}
 
-    messages = []
-    for msg in doc["messages"]:
-        if msg["role"] == "user":
-            messages.append({
-                "role": "user",
-                "content": msg.get("text", "")
-            })
-        elif msg["role"] == "bot":
-            messages.append({
-                "role": "bot",
-                "content": msg.get("response", {})
-            })
-
+    messages = [
+        {"role": msg["role"], "content": msg.get("text") or msg.get("response", {})}
+        for msg in doc["messages"]
+    ]
     return {"messages": messages}

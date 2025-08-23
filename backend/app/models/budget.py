@@ -28,18 +28,7 @@ class BudgetPeriod(str, Enum):
     WEEKLY = "weekly"
     MONTHLY = "monthly"
     YEARLY = "yearly"
-
-# ------------------- USER (FROM CLERK) -------------------
-class UserResponse(BaseModel):
-    id: str = Field(..., alias="_id")  # Clerk user_id ("sub")
-    email: Optional[str] = None
-    username: Optional[str] = None
-    full_name: Optional[str] = None
-    created_at: Optional[datetime] = None
-
-    class Config:
-        populate_by_name = True
-
+    
 # ------------------- BUDGET MODELS -------------------
 class BudgetCreate(BaseModel):
     name: str
@@ -157,7 +146,7 @@ class MonthlyReport(BaseModel):
     expense_trend: str
 
 class DashboardSummary(BaseModel):
-    user: UserResponse
+    user_id: str
     current_month_income: float
     current_month_expenses: float
     current_month_savings: float

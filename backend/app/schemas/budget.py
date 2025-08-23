@@ -3,7 +3,6 @@ from pydantic import BaseModel
 from datetime import datetime
 
 from ..models.budget import (
-    UserResponse,
     BudgetResponse,
     ExpenseResponse,
     IncomeResponse,

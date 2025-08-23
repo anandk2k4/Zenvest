@@ -5,7 +5,7 @@ from bson import ObjectId
 
 GoalCategory = Literal[
     'house', 'retirement', 'education', 'investment', 
-    'emergency', 'vacation', 'car', 'debt'
+    'emergency', 'vacation', 'vehicle', 'debt', 'other'
 ]
 
 class PyObjectId(ObjectId):

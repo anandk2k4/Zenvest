@@ -4,6 +4,7 @@ from datetime import datetime
 from bson import ObjectId
 from app.models.goal import PyObjectId
 
+
 InsightType = Literal['suggestion', 'calculation', 'progress']
 
 class AIInsight(BaseModel):

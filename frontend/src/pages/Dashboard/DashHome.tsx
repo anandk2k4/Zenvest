@@ -7,16 +7,22 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useNavigate } from "react-router-dom";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import axios from "axios";
+import { CreditCard,Target, FileText,Bot } from "lucide-react";
+import NewsList from "@/components/NewsList";
+import { StickyBanner } from "@/components/ui/sticky-banner";
+
+
 
 export default function DashHome() {
   const navigate = useNavigate();
   const { getToken } = useAuth();
   const { user, isSignedIn } = useUser();
 
-  const [budget, setBudget] = useState<any>(null);
+  const [budgetSummary, setBudgetSummary] = useState<any>(null);
   const [goals, setGoals] = useState<any[]>([]);
   const [news, setNews] = useState<any[]>([]);
-  const [aiInsight, setAiInsight] = useState<any>(null);
+  const [aiInsights, setAiInsights] = useState<any[]>([]);
+  const [indices, setIndices] = useState<any[]>([]); // ✅ make it an array
 
   const [loading, setLoading] = useState(true);
 
@@ -25,39 +31,39 @@ export default function DashHome() {
       try {
         const token = await getToken();
 
-        // Budget, Goals, News
-        const [budgetRes, goalsRes, newsRes] = await Promise.all([
-          fetch("http://localhost:8000/api/budget/expenses/", {
+        // ✅ Fetch from Express endpoints
+        const [summaryRes, goalsRes, newsRes, indicesRes] = await Promise.all([
+          fetch(`http://localhost:3001/api/summary?userId=${user?.id}`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          fetch("http://localhost:8000/api/goals/goal", {
+          fetch(`http://localhost:3001/api/goals?userId=${user?.id}`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          fetch("http://localhost:8000/api/news", {
+          fetch("http://localhost:3001/api/news2", {
             headers: { Authorization: `Bearer ${token}` },
           }),
+          fetch("http://localhost:3001/api/indices") // ← backend for indices
         ]);
 
-        setBudget(await budgetRes.json());
-        setGoals(await goalsRes.json());
-        setNews(await newsRes.json());
+        const summaryData = await summaryRes.json();
+        const goalsData = await goalsRes.json();
+        const newsData = await newsRes.json();
+        const indicesData = await indicesRes.json();
 
-        // ✅ AI Insight: use chatBot history
+        setBudgetSummary(summaryData?.summary || null);
+        setGoals(goalsData || []);
+        setNews(newsData || []);
+        setIndices(Array.isArray(indicesData) ? indicesData : []);
+
+        // ✅ AI Insight: fetch last 3 bot responses
         if (isSignedIn && user) {
           const res = await axios.get(
-            `http://localhost:8000/api/chatBot/history/${user.id}`,
+            `http://localhost:3001/api/chat?userId=${user.id}`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
 
-          if (res.data?.messages && res.data.messages.length > 0) {
-            // last bot message
-            const lastBotMsg = [...res.data.messages]
-              .reverse()
-              .find((m) => m.role === "bot");
-
-            if (lastBotMsg) {
-              setAiInsight(lastBotMsg.content);
-            }
+          if (res.data?.aiInsights) {
+            setAiInsights(res.data.aiInsights);
           }
         }
       } catch (err) {
@@ -70,61 +76,124 @@ export default function DashHome() {
     fetchData();
   }, [getToken, isSignedIn, user]);
 
-  const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
+  const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6",'#22C55E'];
 
-  return (
+  return (<>
+    {/* Market Tickers */}
+    {/* ✅ Sticky Market Banner */}
+    <StickyBanner className="bg-black relative rounded-lg bg-gray-150 dark:bg-black">
+        <div className="flex flex-wrap justify-center gap-6 text-sm text-black dark:text-gray-200">
+          {indices.length > 0 ? (
+            indices.map((idx: any, i: number) => {
+              const price = idx?.price ?? "N/A";
+              const changePercent =
+                typeof idx?.changePercent === "number"
+                  ? idx.changePercent
+                  : null;
+
+              return (
+                <span key={i} className="font-medium">
+                  {idx?.name}:{" "}
+                  {changePercent !== null ? (
+                    <span
+                      className={
+                        changePercent >= 0 ? "text-green-400" : "text-red-400"
+                      }
+                    >
+                      {price} {changePercent >= 0 ? "▲" : "▼"}{" "}
+                      {changePercent.toFixed(2)}%
+                    </span>
+                  ) : (
+                    <span className="text-gray-400">{price} (no data)</span>
+                  )}
+                </span>
+              );
+            })
+          ) : (
+            <span className="text-gray-400">
+              {loading ? "Loading indices..." : "No index data"}
+            </span>
+          )}
+        </div>
+      </StickyBanner>
+
     <div className="p-6 space-y-6">
-      {/* Market Tickers */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Market Tickers</CardTitle>
-        </CardHeader>
-        <CardContent className="flex space-x-6 text-sm text-gray-600 dark:text-gray-300">
-          <span>NIFTY 50: 22,350 ▲ 1.2%</span>
-          <span>SENSEX: 74,800 ▼ 0.8%</span>
-          <span>NASDAQ: 14,520 ▲ 0.5%</span>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Budget Overview */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Budget Overview</CardTitle>
-            <Button variant="outline" size="sm" onClick={() => navigate("/dashboard/budget")}>
-              View All
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <Skeleton className="h-40 w-full rounded-xl" />
-            ) : budget ? (
-              <div>
-                <p className="text-sm mb-2">
-                  Income: ₹{budget.income} | Expense: ₹{budget.expense}
-                </p>
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie data={budget.categories} dataKey="amount" outerRadius={80} label>
-                      {budget.categories.map((_: any, i: number) => (
-                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <p className="text-red-500">Failed to load budget</p>
-            )}
-          </CardContent>
-        </Card>
+        
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+            <CreditCard size={32} className="text-blue-500" />
+              <CardTitle>Budget Overview</CardTitle>
+              <Button variant="outline" size="sm" onClick={() => navigate("/dashboard/budget")}>
+                View All
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <Skeleton className="h-40 w-full rounded-xl" />
+              ) : budgetSummary ? (
+                <div className="space-y-4">
+                  {/* Income, Expense, Savings cards */}
+                  <div className="flex gap-4 mb-4">
+                    <div className="flex-1 bg-gray-100 p-4 rounded-lg shadow text-center dark:bg-indigo-500">
+                      <p className="text-black text-sm">Income</p>
+                      <p className="text-xl font-semibold">₹{budgetSummary.income}</p>
+                    </div>
+                    <div className="flex-1 bg-gray-100 p-4 rounded-lg shadow text-center dark:bg-red-600">
+                      <p className="text-black text-sm">Expense</p>
+                      <p className="text-xl font-semibold">₹{budgetSummary.expenses}</p>
+                    </div>
+                    <div className="flex-1 bg-gray-100 p-4 rounded-lg shadow text-center dark:bg-emerald-500">
+                      <p className="text-black text-sm">Savings</p>
+                      <p className="text-xl font-semibold">₹{budgetSummary.savings}</p>
+                    </div>
+                  </div>
 
+                  {/* Pie Chart */}
+                  {budgetSummary.categories.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={250}>
+                      <PieChart className="mt-5">
+                        <Pie
+                          data={budgetSummary.categories}
+                          dataKey="total_amount"
+                          nameKey="category"
+                          outerRadius={90}
+                          labelLine={false}
+                          label={({ category, total_amount }) => {
+                            const total = budgetSummary.categories.reduce((s: any, c: any): any => s + c.total_amount, 0)
+                            const percentage = total > 0 ? (total_amount / total) * 100 : 0
+                            return `${category} ${percentage.toFixed(0)}%`
+                          }}
+                        >
+                          {budgetSummary.categories.map((_: any, i: number) => (
+                            <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <p className="text-gray-500 text-sm">No category data available</p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-red-500">Failed to load budget</p>
+              )}
+            </CardContent>
+          </Card>
+        
         {/* Goals */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
+          <Target size={32} className="text-green-500" />
             <CardTitle>Your Goals</CardTitle>
-            <Button variant="outline" size="sm" onClick={() => navigate("/dashboard/goals")}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate("/dashboard/goals")}
+            >
               View All
             </Button>
           </CardHeader>
@@ -136,82 +205,69 @@ export default function DashHome() {
                 <Skeleton className="h-6 w-full rounded-xl" />
               </div>
             ) : goals.length > 0 ? (
-              goals.slice(0, 4).map((g: any) => {
-                const percent = Math.round((g.current_amount / g.target_amount) * 100);
-                return (
-                  <div key={g.id} className="mb-3">
-                    <div className="flex justify-between text-sm">
-                      <span>{g.name}</span>
-                      <span>{percent}%</span>
-                    </div>
-                    <Progress value={percent} />
+              goals.slice(0, 4).map((g: any) => (
+                <div key={g._id} className="mb-5">
+                  {/* Title */}
+                  <div className="flex justify-between items-center text-sm mb-2">
+                    <span className="font-medium">{g.title}</span>
+                    <span className="text-xs text-gray-500 mt-1">
+                      ₹{g.currentAmount} / ₹{g.targetAmount}
+                    </span>
                   </div>
-                );
-              })
+
+                  {/* Progress bar with percentage inside */}
+                  <div className="relative">
+                    <Progress value={g.progress} />
+                    <span className="absolute inset-0 flex justify-center items-center text-xs font-semibold text-gray-700 dark:text-red-500">
+                      {g.progress}%
+                    </span>
+                  </div>
+
+                  {/* Duration */}
+                  <div className="text-xs text-gray-500 mt-2">
+                    Duration: {g.duration} months
+                  </div>
+                </div>
+              ))
             ) : (
               <p className="text-red-500">No goals found</p>
             )}
           </CardContent>
         </Card>
 
-        {/* News */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Finance News</CardTitle>
-            <Button variant="outline" size="sm" onClick={() => navigate("/dashboard/news")}>
-              View All
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-2">
-                <Skeleton className="h-5 w-full rounded-xl" />
-                <Skeleton className="h-5 w-full rounded-xl" />
-                <Skeleton className="h-5 w-full rounded-xl" />
-              </div>
-            ) : news.length > 0 ? (
-              <ul className="space-y-2">
-                {news.slice(0, 5).map((n: any) => (
-                  <li
-                    key={n.id}
-                    className="text-sm cursor-pointer hover:underline"
-                    onClick={() => navigate(`/news/${n.id}`)}
-                  >
-                    {n.title}{" "}
-                    <span className="text-xs text-gray-500">({n.source})</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-red-500">No news available</p>
-            )}
-          </CardContent>
-        </Card>
+
       </div>
 
-      {/* AI Insights */}
+      {/* News */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>AI Insight</CardTitle>
-          <Button variant="outline" size="sm" onClick={() => navigate("/dashboard/ai")}>
-            Go to AI
+        <FileText size={32} className="text-orange-500" />
+          <CardTitle>Finance News</CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/dashboard/news")}
+          >
+            View All
           </Button>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <Skeleton className="h-20 w-full rounded-xl" />
-          ) : aiInsight ? (
-            <div>
-              <h3 className="font-medium mb-1">{aiInsight.title || "Last Suggestion"}</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {aiInsight.description || aiInsight}
-              </p>
+            <div className="space-y-2">
+              <Skeleton className="h-5 w-full rounded-xl" />
+              <Skeleton className="h-5 w-full rounded-xl" />
+              <Skeleton className="h-5 w-full rounded-xl" />
             </div>
+          ) : news.length > 0 ? (
+            <NewsList news={news} />
           ) : (
-            <p className="text-red-500">No AI suggestions found</p>
+            <p className="text-red-500">No news available</p>
           )}
         </CardContent>
       </Card>
-    </div>
+
+    </div >
+  </>
   );
 }
+

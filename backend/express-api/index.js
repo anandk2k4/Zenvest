@@ -1,13 +1,15 @@
-const express = require("express");
-const cors = require("cors");
-const connectDB = require("./db/mongodb");
+import express from "express";
+import cors from "cors";
+import connectDB from "./db/mongodb.js";
+import dotenv from "dotenv";
+dotenv.config();
 
-
-const dashboardRoutes = require("./routes/dashboardRoutes");
-const budgetRoutes = require("./routes/budgetRoutes");
-const contactRoutes = require("./routes/contactRoutes");
-const goalsRoutes = require("./routes/goalsRoutes");
-const newsRoutes = require("./routes/newsRoutes");
+import dashboardRoutes from "./routes/dashboardRoutes.js";
+import chatRoutes from "./routes/chatRoutes.js";
+import goalsRoutes from "./routes/goalsRoutes.js";
+import newsRoutes from "./routes/newsRoutes.js";
+import newsRoutes2 from "./routes/newsRoutes2.js";
+import marketRoutes from "./routes/marketRoutes.js";
 
 const app = express();
 const PORT = 3001;
@@ -17,15 +19,17 @@ app.use(express.json());
 connectDB();
 
 
-require("dotenv").config();
+
+
 
 // Routes
-app.use("/api/dashboard", dashboardRoutes);
-// app.use("/api/budget", budgetRoutes);
-// app.use("/api/contact", contactRoutes);
-// app.use("/api/goals", goalsRoutes);
-// app.use("/api/news", newsRoutes);
+// ✅ API routes
+app.use("/api", dashboardRoutes);
+app.use("/api", goalsRoutes);
+app.use("/api", chatRoutes);
 app.use("/api", newsRoutes);
+app.use("/api", newsRoutes2);
+app.use("/api", marketRoutes);
 
 
 app.listen(PORT, () => {

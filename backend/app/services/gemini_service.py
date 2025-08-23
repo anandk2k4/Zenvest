@@ -78,7 +78,7 @@ Format must strictly follow this schema:
 Now answer the user query: "{user_message}"
 """
 
-        model = genai.GenerativeModel(_model)
+        model = genai.GenerativeModel("gemini-1.5-flash")
 
         response = model.generate_content(
             prompt,

@@ -67,40 +67,45 @@ export default function BudgetDashboard() {
   const [savings, setSavings] = useState<number>(0)
   const [isOverBudget, setIsOverBudget] = useState(false)
   const [aiAdvice, setAiAdvice] = useState<AIAdvice[]>([])
-  const [showIncomeForm, setShowIncomeForm] = useState(true)
   const [showExpenseDialog, setShowExpenseDialog] = useState(false)
   const [newExpense, setNewExpense] = useState({ category: "", amount: "" })
+  const [showIncomeForm, setShowIncomeForm] = useState<boolean | null>(null)
+  const [showDeficitAlert, setShowDeficitAlert] = useState(false)
+  
 
   // 🔹 Fetch dashboard summary
   const fetchDashboardData = async () => {
     try {
       const data = await api.get<DashboardSummary>("http://localhost:8000/api/dashboard/summary")
-      setIncome(data.current_month_income)
-      setSavings(data.current_month_savings)
-      setExpensesByCategory(data.category_breakdown)
-      setIsOverBudget(data.current_month_expenses >= data.current_month_income)
-      setShowIncomeForm(false)
+
+      if (data.current_month_income && data.current_month_income > 0) {
+        // ✅ user already has income
+        setIncome(data.current_month_income)
+        setSavings(data.current_month_savings)
+        setExpensesByCategory(data.category_breakdown)
+        setIsOverBudget(data.current_month_expenses >= data.current_month_income)
+        setShowIncomeForm(false)
+      } else {
+        // ❌ no income yet
+        setShowIncomeForm(true)
+      }
     } catch (err) {
       console.error("Dashboard fetch failed:", err)
+      setShowIncomeForm(true) // fallback → ask for income
     }
   }
 
-  // 🔹 Fetch AI Advisor
-  const fetchAIAdvice = async () => {
-    try {
-      const response = await api.get<{ advice_list: AIAdvice[] }>(
-        "http://localhost:8000/api/dashboard/ai-advisor"
-      );
-      setAiAdvice(response.advice_list);
-    } catch (err) {
-      console.error("AI advice fetch failed:", err)
-    }
-  }
-
+  
   useEffect(() => {
     fetchDashboardData()
-    fetchAIAdvice()
   }, [])
+
+   // ⚠️ New: Trigger deficit alert
+   useEffect(() => {
+    if (savings < 0) {
+      setShowDeficitAlert(true)
+    }
+  }, [savings])
 
   // 🔹 Submit Income
   const handleIncomeSubmit = async (e: React.FormEvent) => {
@@ -115,7 +120,6 @@ export default function BudgetDashboard() {
           source: "manual",
         })
         fetchDashboardData()
-        fetchAIAdvice()
       } catch (err) {
         console.error("Income submit failed:", err)
       }
@@ -137,7 +141,6 @@ export default function BudgetDashboard() {
         setNewExpense({ category: "", amount: "" })
         setShowExpenseDialog(false)
         fetchDashboardData()
-        fetchAIAdvice()
       } catch (err) {
         console.error("Expense submit failed:", err)
       }
@@ -145,6 +148,13 @@ export default function BudgetDashboard() {
   }
 
   // ---------------- UI ----------------
+  if (showIncomeForm === null) {
+    return (
+      <div className="h-130 flex items-center justify-center">
+        <p className="text-gray-600">Loading...</p>
+      </div>
+    )
+  }
   if (showIncomeForm) {
     return (
       <div className="h-140 flex items-center justify-center p-4 dark:bg-gray-900">
@@ -301,47 +311,6 @@ export default function BudgetDashboard() {
           </Card>
         </div>
 
-        {/* AI Advisor */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Brain className="h-5 w-5 text-purple-600" />
-              AI Financial Advisor
-            </CardTitle>
-            <CardDescription>Personalized insights and recommendations</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <ul className="space-y-4">
-                {aiAdvice.length > 0 ? (
-                  aiAdvice.map((advice, index) => (
-                    <div key={index} className="flex items-start gap-3 p-4 rounded-lg bg-gray-50">
-                      {advice.advice_type === "savings" && <Target className="h-5 w-5 text-green-500 mt-0.5" />}
-                      {advice.advice_type === "expense_reduction" && <TrendingDown className="h-5 w-5 text-blue-500 mt-0.5" />}
-                      {advice.advice_type === "alert" && <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5" />}
-                      <div>
-                        <li
-                          key={advice.title}
-                          className="p-4 rounded-lg shadow bg-white border"
-                        >
-                          <h4 className="font-semibold text-gray-900">{advice.title}</h4>
-                          <p className="text-gray-600 text-sm mt-1">{advice.message}</p>
-                          {advice.potential_savings !== undefined && (
-                            <p className="text-green-600 font-medium">
-                              💰 Potential Savings: ₹{advice.potential_savings.toLocaleString()}
-                            </p>
-                          )}
-                        </li>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-gray-500 text-center py-8">Add some expenses to get personalized financial advice!</p>
-                )}
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* --- Add Expense Dialog --- */}
         <div className="fixed bottom-6 right-6">

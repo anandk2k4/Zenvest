@@ -1,8 +1,9 @@
-const express = require("express");
-const { getDashboardData } = require("../controllers/dashboardController");
+import express from "express";
+import { getLatestDashboardSummary } from "../controllers/dashboardController.js";
 
 const router = express.Router();
 
-router.get("/", getDashboardData);
+// Read-only endpoint: latest summary for a user
+router.get("/summary", getLatestDashboardSummary);
 
-module.exports = router;
+export default router;

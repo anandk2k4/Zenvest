@@ -98,7 +98,7 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
       {!isUser && (
         <Avatar>
           <AvatarFallback className="bg-primary text-white">
-            <Bot size={16} />
+            <Bot size={25} className="text-blue-300"/>
           </AvatarFallback>
         </Avatar>
       )}
@@ -107,7 +107,7 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
       <div
         className={`max-w-[70%] rounded-2xl px-4 py-3 text-sm shadow-md ${isUser
             ? "bg-emerald-200 text-black rounded-br-none"
-            : "bg-muted text-foreground rounded-bl-none"
+            : "bg-muted text-foreground rounded-tl-none"
           }`}
       >
         {renderContent()}

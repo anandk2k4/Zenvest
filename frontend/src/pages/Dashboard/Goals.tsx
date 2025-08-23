@@ -210,6 +210,7 @@ const GoalTrackingPage = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       )
 
+      console.log(response)
       // Convert raw text into bullet list if it contains bullet markers
       const formatContent = (text: string): string[] | string => {
         if (!text) return ""
@@ -218,9 +219,9 @@ const GoalTrackingPage = () => {
         let cleaned = text.replace(/^<p>|<\/p>$/g, "").trim()
 
         // Split into bullet points if `•` exists
-        if (cleaned.includes("•")) {
+        if (cleaned.includes("\n\n")) {
           return cleaned
-            .split("•")
+            .split("\n\n")
             .map(line => line.trim())
             .filter(Boolean) // remove empty strings
         }

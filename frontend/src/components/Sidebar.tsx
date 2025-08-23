@@ -4,8 +4,6 @@ import {
   BarChart,
   Target,
   BrainCog,
-  FolderKanban,
-  FileBarChart,
   Newspaper,
   LogOut,
 } from "lucide-react";
@@ -17,8 +15,7 @@ const navItems = [
   { label: "Financial Goals", to: "/dashboard/goals", icon: <Target /> },
   { label: "AI Insight", to: "/dashboard/ai", icon: <BrainCog /> },
   { label: "Finance News", to: "/dashboard/news", icon: <Newspaper /> },
-  { label: "Portfolio", to: "/dashboard/portfolio", icon: <FolderKanban /> },
-  { label: "Reports", to: "/dashboard/reports", icon: <FileBarChart /> },
+  
 ];
 
 const Sidebar = () => {

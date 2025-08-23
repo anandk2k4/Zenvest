@@ -9,8 +9,6 @@ import DashboardHome from "@/pages/Dashboard/DashHome";
 import Budget from "@/pages/Dashboard/Budget";
 import Goals from "@/pages/Dashboard/Goals";
 import AIInsight from "@/pages/Dashboard/ChatBot";
-import Reports from "@/pages/Dashboard/Reports";
-import Portfolio from "@/pages/Dashboard/Portfolio";
 import News from "@/pages/Dashboard/News";
 
 
@@ -59,8 +57,6 @@ function App() {
             <Route path="budget" element={<Budget />} />
             <Route path="goals" element={<Goals />} />
             <Route path="ai" element={<AIInsight />} />
-            <Route path="portfolio" element={<Portfolio />} />
-            <Route path="reports" element={<Reports />} />
             <Route path="news" element={<News />} />
           </Route>
         </Routes>
