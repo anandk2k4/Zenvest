@@ -1,5 +1,1 @@
-<<<<<<< HEAD
-# Zenvest-Ai
-=======
-
->>>>>>> 25fbc48 (first commit)
+🌱 ZenVest – AI-Powered Personal Finance Advisor
