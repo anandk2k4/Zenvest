@@ -99,6 +99,28 @@ VITE_API_URL=http://localhost:3001
 
 ---
 
+## 📸 Screenshots
+
+### Landing page
+![Landing Screenshot](./public/landing.png)
+
+### Dashboard
+![Dashboard Screenshot](./public/dashboard.png)
+
+### Budget Planner
+![Budget Screenshot](./public/budget.png)
+
+### Financial Goal
+![Goal Screenshot](./public/goals.png)
+
+### AI Advisor
+![AI Advisor Screenshot](./public/ai_insight.png)
+
+### Financial News
+![News Screenshot](./public/news.png)
+
+---
+
 ## 🤝 Contributing
 Contributions are welcome!  
 1. Fork the repo  
