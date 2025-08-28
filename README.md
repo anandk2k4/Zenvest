@@ -105,19 +105,19 @@ VITE_API_URL=http://localhost:3001
 ![Landing Screenshot](./frontend/public/landing.png)
 
 ### Dashboard
-![Dashboard Screenshot](./public/dashboard.png)
+![Dashboard Screenshot](./frontend/public/dashboard.png)
 
 ### Budget Planner
-![Budget Screenshot](./public/budget.png)
+![Budget Screenshot](./frontend/public/budget.png)
 
 ### Financial Goal
-![Goal Screenshot](./public/goals.png)
+![Goal Screenshot](./frontend/public/goals.png)
 
 ### AI Advisor
-![AI Advisor Screenshot](./public/ai_insight.png)
+![AI Advisor Screenshot](./frontend/public/ai_insight.png)
 
 ### Financial News
-![News Screenshot](./public/news.png)
+![News Screenshot](./frontend/public/news.png)
 
 ---
 
