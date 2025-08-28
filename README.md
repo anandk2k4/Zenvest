@@ -113,7 +113,7 @@ VITE_API_URL=http://localhost:3001
 ### Financial Goal
 ![Goal Screenshot](./frontend/public/goals.png)
 
-### AI Advisor
+### AI Insight
 ![AI Advisor Screenshot](./frontend/public/ai_insight.png)
 
 ### Financial News
