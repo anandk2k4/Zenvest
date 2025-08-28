@@ -15,7 +15,7 @@ import { StickyBanner } from "@/components/ui/sticky-banner";
 
 export default function DashHome() {
   const navigate = useNavigate();
-  const { getToken } = useAuth();
+  const { getToken,userId } = useAuth();
   const { user, isSignedIn } = useUser();
 
   const [budgetSummary, setBudgetSummary] = useState<any>(null);
@@ -27,22 +27,24 @@ export default function DashHome() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!isSignedIn || !user) return;  // ⛔️ Skip until Clerk has user
     const fetchData = async () => {
       try {
         const token = await getToken();
+        if (!token) return;
 
         // ✅ Fetch from Express endpoints
         const [summaryRes, goalsRes, newsRes, indicesRes] = await Promise.all([
-          fetch(`http://localhost:3001/api/summary?userId=${user?.id}`, {
+          fetch(`http://localhost:3001/api/dashboard/summary?userId=${userId}`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          fetch(`http://localhost:3001/api/goals?userId=${user?.id}`, {
+          fetch(`http://localhost:3001/api/goals?userId=${userId}`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
           fetch("http://localhost:3001/api/news2", {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          fetch("http://localhost:3001/api/indices") // ← backend for indices
+          fetch("http://localhost:3001/api/indices"),
         ]);
 
         const summaryData = await summaryRes.json();
@@ -56,7 +58,6 @@ export default function DashHome() {
         setIndices(Array.isArray(indicesData) ? indicesData : []);
 
         // ✅ AI Insight: fetch last 3 bot responses
-        if (isSignedIn && user) {
           const res = await axios.get(
             `http://localhost:3001/api/chat?userId=${user.id}`,
             { headers: { Authorization: `Bearer ${token}` } }
@@ -65,7 +66,6 @@ export default function DashHome() {
           if (res.data?.aiInsights) {
             setAiInsights(res.data.aiInsights);
           }
-        }
       } catch (err) {
         console.error("Failed to fetch dashboard data:", err);
       } finally {

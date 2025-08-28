@@ -13,8 +13,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Sector, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
-import { IndianRupee, TrendingUp, TrendingDown, Plus, Brain, Target, AlertTriangle } from "lucide-react"
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
+import { IndianRupee, TrendingUp, TrendingDown, Plus, Target } from "lucide-react"
 import { useApi } from "@/utils/api"   // ✅ our axios-based API hook
 import { useAuth } from "@clerk/clerk-react"
 
@@ -59,7 +59,7 @@ const COLORS = ["#10b981", "#3b82f6", "#8b5cf6", "#f59e0b", "#ef4444", "#06b6d4"
 
 // ---------------- Component ----------------
 export default function BudgetDashboard() {
-  const api = useApi() // ✅ useApi hook
+  const api = useApi()
   const { getToken } = useAuth()
 
   const [income, setIncome] = useState<number>(0)
@@ -71,37 +71,34 @@ export default function BudgetDashboard() {
   const [newExpense, setNewExpense] = useState({ category: "", amount: "" })
   const [showIncomeForm, setShowIncomeForm] = useState<boolean | null>(null)
   const [showDeficitAlert, setShowDeficitAlert] = useState(false)
-  
 
   // 🔹 Fetch dashboard summary
   const fetchDashboardData = async () => {
     try {
       const data = await api.get<DashboardSummary>("http://localhost:8000/api/dashboard/summary")
-
+      console.log(data)
       if (data.current_month_income && data.current_month_income > 0) {
-        // ✅ user already has income
         setIncome(data.current_month_income)
         setSavings(data.current_month_savings)
         setExpensesByCategory(data.category_breakdown)
         setIsOverBudget(data.current_month_expenses >= data.current_month_income)
         setShowIncomeForm(false)
       } else {
-        // ❌ no income yet
+        console.log("errors")
         setShowIncomeForm(true)
       }
     } catch (err) {
       console.error("Dashboard fetch failed:", err)
-      setShowIncomeForm(true) // fallback → ask for income
+      setShowIncomeForm(true)
     }
   }
 
-  
   useEffect(() => {
     fetchDashboardData()
   }, [])
 
-   // ⚠️ New: Trigger deficit alert
-   useEffect(() => {
+  // ⚠️ Deficit alert
+  useEffect(() => {
     if (savings < 0) {
       setShowDeficitAlert(true)
     }
@@ -119,6 +116,15 @@ export default function BudgetDashboard() {
           type: "Salary",
           source: "manual",
         })
+
+        // ✅ Instantly update UI so dashboard shows right away
+        setIncome(incomeValue)
+        setSavings(incomeValue) // assume all as savings initially
+        setExpensesByCategory([])
+        setIsOverBudget(false)
+        setShowIncomeForm(false)
+
+        // ✅ Then refetch summary from backend in background
         fetchDashboardData()
       } catch (err) {
         console.error("Income submit failed:", err)
@@ -136,10 +142,21 @@ export default function BudgetDashboard() {
           category: newExpense.category,
           amount: Number.parseFloat(newExpense.amount),
           description: "Added from dashboard",
-        }, { headers: { Authorization: `Bearer ${token}` } }
-        )
+        }, { headers: { Authorization: `Bearer ${token}` } })
+
+        // ✅ Update UI instantly
+        const updatedExpenses = [
+          ...expensesByCategory,
+          { category: newExpense.category, total_amount: Number(newExpense.amount), transaction_count: 1, percentage_of_total: 0 },
+        ]
+        setExpensesByCategory(updatedExpenses)
+        setSavings(income - updatedExpenses.reduce((s, c) => s + c.total_amount, 0))
+        setIsOverBudget(updatedExpenses.reduce((s, c) => s + c.total_amount, 0) >= income)
+
         setNewExpense({ category: "", amount: "" })
         setShowExpenseDialog(false)
+
+        // ✅ Then sync with backend
         fetchDashboardData()
       } catch (err) {
         console.error("Expense submit failed:", err)
@@ -156,6 +173,7 @@ export default function BudgetDashboard() {
     )
   }
   if (showIncomeForm) {
+    console.log(showIncomeForm)
     return (
       <div className="h-140 flex items-center justify-center p-4 dark:bg-gray-900">
         <Card className="w-full max-w-md">
@@ -240,7 +258,6 @@ export default function BudgetDashboard() {
           </Card>
         </div>
 
-
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Pie Chart */}
@@ -267,7 +284,6 @@ export default function BudgetDashboard() {
                       dataKey="total_amount"
                     >
                       {expensesByCategory.map((entry, index) => {
-                        // find max slice
                         const maxValue = Math.max(...expensesByCategory.map(e => e.total_amount))
                         const isMax = entry.total_amount === maxValue
                         return (
@@ -278,7 +294,7 @@ export default function BudgetDashboard() {
                         )
                       })}
                     </Pie>
-                    <Tooltip formatter={(value) => [`$${Number(value).toFixed(2)}`, "Amount"]} />
+                    <Tooltip formatter={(value) => [`₹${Number(value).toFixed(2)}`, "Amount"]} />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
@@ -300,7 +316,7 @@ export default function BudgetDashboard() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="category" angle={-45} textAnchor="end" height={80} fontSize={12} />
                     <YAxis />
-                    <Tooltip formatter={(value) => [`$${Number(value).toFixed(2)}`, "Amount"]} />
+                    <Tooltip formatter={(value) => [`₹${Number(value).toFixed(2)}`, "Amount"]} />
                     <Bar dataKey="total_amount" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -310,7 +326,6 @@ export default function BudgetDashboard() {
             </CardContent>
           </Card>
         </div>
-
 
         {/* --- Add Expense Dialog --- */}
         <div className="fixed bottom-6 right-6">
@@ -346,7 +361,7 @@ export default function BudgetDashboard() {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="amount">Amount ($)</Label>
+                  <Label htmlFor="amount">Amount (₹)</Label>
                   <Input
                     id="amount"
                     type="number"
