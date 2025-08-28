@@ -1,23 +1,24 @@
 # 🌱 ZenVest – AI-Powered Personal Finance Advisor
 
 ZenVest is an **AI-powered financial planning app** that helps users **set savings goals, track expenses, and receive personalized investment insights**.  
-It combines **FastAPI** and **Express.js APIs** with a **Next.js frontend** to deliver a smooth experience.  
+It combines **FastAPI** and **Express.js APIs** with a **React + ts + tailwind as frontend** to deliver a smooth experience.  
 
 ---
 
 ## 🚀 Features
-- 💡 **AI Advisor** – Personalized savings & investment insights (powered by LLM).  
-- 🎯 **Goal Tracking** – Define and track financial goals.  
-- 📊 **Dashboard** – Income, expense, and savings visualizations.  
+- 💡 **AI Insight** – Personalized investment insights.  
+- 🎯 **Goal Tracking** – Define and track financial goals and get ai suggestions.  
+- 📊 **Budget Planner** – Income, expense, and savings visualizations.
+- 📰 **Finance News** – Gives the real-time Finance News.  
 - 🔐 **Authentication** – Secure login with Clerk.  
-- ⚡ **Hybrid Backend** – FastAPI (AI services) + Express.js (core APIs).  
-- 🎨 **Next.js Frontend** – Clean, responsive, and user-friendly.  
+- ⚡ **Hybrid Backend** – FastAPI + Express.js (core APIs).  
+- 🎨 **React Frontend** – Clean, responsive, and user-friendly.  
 
 ---
 
 ## 🛠️ Tech Stack
-- **Frontend:** Next.js, TailwindCSS, Clerk Auth  
-- **Backend 1 (AI):** FastAPI (Python), Cohere, MongoDB  
+- **Frontend:** React, Typescript, TailwindCSS, Clerk Auth  
+- **Backend 1 :** FastAPI (Python), Cohere, MongoDB  
 - **Backend 2 (Core APIs):** Express.js (Node.js)  
 - **Database:** MongoDB  
 
@@ -27,20 +28,10 @@ It combines **FastAPI** and **Express.js APIs** with a **Next.js frontend** to d
 ```
 zenvest/
 │── backend/
-│   ├── app/              # FastAPI app (AI insights & goal service)
-│   │   ├── main.py
-│   │   ├── services/
-│   │   ├── models/
-│   │   └── requirements.txt
-│   ├── express-api/      # Express.js backend (general API services)
-│   │   ├── index.js
-│   │   ├── routes/
-│   │   └── package.json
-│── frontend/             # Next.js frontend
-│   ├── pages/
-│   ├── components/
-│   └── package.json
-│── README.md
+│   ├── app/              # FastAPI app (AI insights, goal service & Budget services)
+│   ├── express-api/      # Express.js backend (Work as Caching layer for News API and general API services)
+│   ├── requirements.txt
+│── frontend/             # React + vite frontend
 ```
 
 ---
@@ -55,9 +46,9 @@ cd zenvest
 
 ---
 
-### 2. Backend – FastAPI (AI Service)
+### 2. Backend – FastAPI 
 ```bash
-cd backend/app
+cd backend
 python -m venv venv
 source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
@@ -67,49 +58,66 @@ Runs at: `http://localhost:8000`
 
 ---
 
-### 3. Backend – Express.js (Core API Service)
+### 3. Backend – Express.js 
 ```bash
 cd backend/express-api
 npm install
 npm start
 ```
-Runs at: `http://localhost:5000`
+Runs at: `http://localhost:3001`
 
 ---
 
-### 4. Frontend – Next.js
+### 4. Frontend – React + vite + TypeScript
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-Runs at: `http://localhost:3000`
+Runs at: `http://localhost:5173`
 
 ---
 
 ## 🔑 Environment Variables
 
-### FastAPI (`backend/app/.env`)
+### FastAPI (`backend/.env`)
 ```env
-MONGO_URI=your_mongodb_uri
+MONGODB_URL=your_mongodb_url
+DB_NAME=your_mongodb_database_name
 COHERE_API_KEY=your_cohere_api_key
-SECRET_KEY=your_secret_key
-```
-
-### Express.js (`backend/express-api/.env`)
-```env
-PORT=5000
-MONGO_URI=your_mongodb_uri
-JWT_SECRET=your_secret_key
-```
-
-### Frontend (`frontend/.env.local`)
-```env
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+GNEWS_API_KEY=your_gnews_api_key
+CRYPTOCOMPARE_API_KEY=your_cryptocompare_api_key
+GEMINI_API_KEY=your_gemini_api_key
 CLERK_SECRET_KEY=your_clerk_secret_key
-NEXT_PUBLIC_FASTAPI_URL=http://localhost:8000
-NEXT_PUBLIC_EXPRESS_API_URL=http://localhost:5000
 ```
+
+### Frontend (`frontend/.env`)
+```env
+VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+VITE_API_URL=http://localhost:3001
+```
+
+---
+
+## 📸 Screenshots
+
+### Landing page
+![Landing Screenshot](./public/landing.png)
+
+### Dashboard
+![Dashboard Screenshot](./public/dashboard.png)
+
+### Budget Planner
+![Budget Screenshot](./public/budget.png)
+
+### Financial Goal
+![Goal Screenshot](./public/goals.png)
+
+### AI Advisor
+![AI Advisor Screenshot](./public/ai_insight.png)
+
+### Financial News
+![News Screenshot](./public/news.png)
 
 ---
 
