@@ -102,7 +102,7 @@ VITE_API_URL=http://localhost:3001
 ## 📸 Screenshots
 
 ### Landing page
-![Landing Screenshot](./public/landing.png)
+![Landing Screenshot](./frontend/public/landing.png)
 
 ### Dashboard
 ![Dashboard Screenshot](./public/dashboard.png)
