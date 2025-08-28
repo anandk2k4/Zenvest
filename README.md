@@ -6,7 +6,7 @@ It combines **FastAPI** and **Express.js APIs** with a **React + ts + tailwind a
 ---
 
 ## 🚀 Features
-- 💡 **AI Advisor** – Personalized investment insights.  
+- 💡 **AI Insight** – Personalized investment insights.  
 - 🎯 **Goal Tracking** – Define and track financial goals and get ai suggestions.  
 - 📊 **Budget Planner** – Income, expense, and savings visualizations.
 - 📰 **Finance News** – Gives the real-time Finance News.  
